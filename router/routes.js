@@ -4,25 +4,10 @@ const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 const config = require('../config/config');
 const TokenModel = require('../model/Token')
+const getOAuthUrl = require('../auth/auth')
 const path = require('path');
 
-// Function to generate OAuth URL
-function getOAuthUrl() {
-    const oauth2Client = new OAuth2(
-        config.clientId,
-        config.clientSecret,
-        config.redirectUrl,
-    );
 
-    const scopes = [
-        'https://www.googleapis.com/auth/drive',
-    ];
-
-    return oauth2Client.generateAuthUrl({
-        access_type: 'offline',
-        scope: scopes
-    });
-}
 
 // Home page or Login Page
 router.get('/', (req, res) => {
