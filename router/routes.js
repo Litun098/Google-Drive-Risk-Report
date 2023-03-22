@@ -73,28 +73,32 @@ router.get('/home', async (req, res) => {
             auth: oauth2Client,
         });
 
+        let files = [];
+        let nextPageToken = "";
+
         // Get the list of all files from the Google Drive API
-        const response = await drive.files.list({
-            pageSize: 1000,
-            q: "'root' in parents and trashed = false",
-            fields: 'nextPageToken, files(id, name, owners, shared, sharedWithMeTime, webViewLink, permissions, size)',
-        });
+        do{
+            const response = await drive.files.list({
+                pageSize: 1000,
+                q: "'root' in parents and trashed = false",
+                fields: 'nextPageToken, files(id, name, owners, shared, sharedWithMeTime, webViewLink, permissions, size)',
+                pageToken: nextPageToken
+            });
+            files=[...files,...response.data.files];
+            nextPageToken = response.data.nextPageToken;
+        }while(nextPageToken);
 
 
-        const files = response.data.files;
-        // Initialize the counters
-        let totalFileAndFolderCount = 0;
+        const totalFileAndFolderCount = files.length;
         let totalFileSize = 0;
         let totalExternalFileCount = 0;
         let totalPublicFileCount = 0;
-        let riskReport = [];
+        let peopleAccessedFiles = {};
         let riskFileCount = 0;
-        const peopleAccessedFiles = {};
+        let riskReport = [];
 
-        // Iterate through each file and update the counters and peopleAccessedFiles object
         for (const file of files) {
-            totalFileAndFolderCount++;
-            if(file.size){
+            if (file.size) {
                 totalFileSize += Math.ceil((file.size) / (1024 * 1024));
             }
 
@@ -119,6 +123,13 @@ router.get('/home', async (req, res) => {
                 }
             }
         }
+
+        console.log('People who have accessed your files:');
+        for (const email in peopleAccessedFiles) {
+            console.log(`${peopleAccessedFiles[email].name} (${email}): ${peopleAccessedFiles[email].count} times`);
+        }
+
+
         if (totalFileAndFolderCount > 10) {
             riskFileCount += 10;
         }
@@ -150,8 +161,13 @@ router.get('/home', async (req, res) => {
         } if(riskScore >= 70) {
             grade = "High";
         }
-        console.log(riskScore,grade);
 
+        console.log('Total file and folder count:', totalFileAndFolderCount);
+        console.log('Total file size:', totalFileSize, 'MB');
+        console.log('Total external file count:', totalExternalFileCount);
+        console.log('Total public file count:', totalPublicFileCount);
+
+        
         res.write(`
             <h1>Your Google Drive Risk Report</h1>
             <h2>Risk Score: ${riskScore}% <em>${grade}</em></h2>
@@ -167,7 +183,6 @@ router.get('/home', async (req, res) => {
             <li>Total number of public files available via link: ${totalPublicFileCount}</li>
             <li>Total number of people having access to files: ${Object.keys(peopleAccessedFiles).length}</li>
         </ul>
-
 
         <h2>People who have accessed your files:</h2>
         <ul>
