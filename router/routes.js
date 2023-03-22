@@ -18,6 +18,8 @@ router.get('/', (req, res) => {
     `);
 });
 
+
+// This will redirect to the home page and show the report
 router.get('/oauth2callback', async (req, res) => {
     const code = req.query.code;
 
@@ -44,7 +46,7 @@ router.get('/oauth2callback', async (req, res) => {
 
 
 
-
+// Home page or report page 
 router.get('/home', async (req, res) => {
     try {
         const token = await TokenModel.findOne();
@@ -188,40 +190,6 @@ router.get('/home', async (req, res) => {
     }
 });
 
-
-router.get('/auth/google', (req, res) => {
-    const oauth2Client = new OAuth2(
-        config.clientId,
-        config.clientSecret,
-        config.redirectUrl,
-    );
-    const url = oauth2Client.generateAuthUrl({
-        access_type: 'offline',
-        scope: config.scopes,
-    });
-
-    res.redirect(url);
-});
-
-router.get('/auth/google/callback', async (req, res) => {
-    const oauth2Client = new OAuth2(
-        config.clientId,
-        config.clientSecret,
-        config.redirectUrl,
-    );
-    try {
-        const { tokens } = await oauth2Client.getToken(req.query.code);
-
-        await TokenModel.deleteMany();
-        await new TokenModel(tokens).save();
-
-        res.redirect('/home');
-    } catch (err) {
-        console.log(err);
-        res.redirect('/');
-    }
-});
-
 router.get('/revoke', async (req, res) => {
     try {
         const token = await TokenModel.findOne();
@@ -229,7 +197,7 @@ router.get('/revoke', async (req, res) => {
         if (!token) {
             return res.redirect('/');
         }
-
+        
         const oauth2Client = new OAuth2(
             config.clientId,
             config.clientSecret,
