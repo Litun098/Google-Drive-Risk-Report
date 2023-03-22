@@ -77,27 +77,26 @@ router.get('/home', async (req, res) => {
         const response = await drive.files.list({
             pageSize: 1000,
             q: "'root' in parents and trashed = false",
-            fields: 'nextPageToken, files(id, name, owners, shared, sharedWithMeTime, webViewLink, permissions)',
+            fields: 'nextPageToken, files(id, name, owners, shared, sharedWithMeTime, webViewLink, permissions, size)',
         });
 
 
         const files = response.data.files;
-
         // Initialize the counters
-        let totalFileCount = 0;
+        let totalFileAndFolderCount = 0;
         let totalFileSize = 0;
         let totalExternalFileCount = 0;
         let totalPublicFileCount = 0;
         let riskReport = [];
         let riskFileCount = 0;
-        let totalRiskFileSize = 0;
-        let fileCount = 0;
         const peopleAccessedFiles = {};
 
         // Iterate through each file and update the counters and peopleAccessedFiles object
         for (const file of files) {
-            totalFileCount++;
-            totalFileSize += Math.round((file.size) / (1024 * 1024));
+            totalFileAndFolderCount++;
+            if(file.size){
+                totalFileSize += Math.ceil((file.size) / (1024 * 1024));
+            }
 
             if (file.shared) {
                 totalExternalFileCount++;
@@ -120,8 +119,8 @@ router.get('/home', async (req, res) => {
                 }
             }
         }
-        if (totalFileCount > 10) {
-            riskFileCount += 100;
+        if (totalFileAndFolderCount > 10) {
+            riskFileCount += 10;
         }
         
 
@@ -141,17 +140,17 @@ router.get('/home', async (req, res) => {
 
         
         // Count Totoal Risk Score
-        riskScore = Math.ceil(((totalRiskFileSize * riskFileCount) / totalFileSize) * 100);
-
-
+        riskScore = Math.ceil((riskFileCount / totalFileSize) * 100);
+        
         let grade = "";
         if (riskScore >= 0 && riskScore <= 35) {
             grade = "Low";
         } if (riskScore >= 35 && riskScore <= 70) {
             grade = "Medium";
-        } else {
+        } if(riskScore >= 70) {
             grade = "High";
         }
+        console.log(riskScore,grade);
 
         res.write(`
             <h1>Your Google Drive Risk Report</h1>
@@ -162,7 +161,7 @@ router.get('/home', async (req, res) => {
             <ul>
                 ${riskReport.map((risk) => `<li>${risk}</li>`)}
             </ul>
-            <li>Total file count: ${totalFileCount}</li>
+            <li>Total file count: ${totalFileAndFolderCount}</li>
             <li>Total file size: ${totalFileSize} MB</li>
             <li>Total number of files shared externally: ${totalExternalFileCount}</li>
             <li>Total number of public files available via link: ${totalPublicFileCount}</li>
@@ -190,6 +189,8 @@ router.get('/home', async (req, res) => {
     }
 });
 
+
+// Logout and redireced to login page
 router.get('/revoke', async (req, res) => {
     try {
         const token = await TokenModel.findOne();
